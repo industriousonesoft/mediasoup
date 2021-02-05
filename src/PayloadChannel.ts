@@ -17,7 +17,7 @@ type Sent =
 	close: () => void;
 }
 
-// netstring length for a 4194304 bytes payload.
+// netstring length for a 4194304 (4MB) bytes payload.
 const NS_MESSAGE_MAX_LEN = 4194313;
 const NS_PAYLOAD_MAX_LEN = 4194304;
 
@@ -179,6 +179,7 @@ export class PayloadChannel extends EnhancedEventEmitter
 	/**
 	 * @private
 	 */
+	// 向woker发送通知
 	notify(
 		event: string,
 		internal: object,
@@ -228,6 +229,7 @@ export class PayloadChannel extends EnhancedEventEmitter
 	/**
 	 * @private
 	 */
+	// 向woker发送异步请求
 	async request(
 		method: string,
 		internal: object,

@@ -17,18 +17,20 @@ type Sent =
 	close: () => void;
 }
 
-// netstring length for a 4194304 bytes payload.
+// netstring length for a 4194304 (4 MB) bytes payload.
 const NS_MESSAGE_MAX_LEN = 4194313;
-const NS_PAYLOAD_MAX_LEN = 4194304;
+const NS_PAYLOAD_MAX_LEN = 4194304; 
 
 export class Channel extends EnhancedEventEmitter
 {
 	// Closed flag.
 	private _closed = false;
 
+	// 用于向worker进程发送数据的双工流
 	// Unix Socket instance for sending messages to the worker process.
 	private readonly _producerSocket: Duplex;
 
+	// 用于接受worker进程发送过来的消息的双工流
 	// Unix Socket instance for receiving messages to the worker process.
 	private readonly _consumerSocket: Duplex;
 
@@ -63,6 +65,7 @@ export class Channel extends EnhancedEventEmitter
 		this._producerSocket = producerSocket as Duplex;
 		this._consumerSocket = consumerSocket as Duplex;
 
+		// 监听worker发送的数据
 		// Read Channel responses/notifications from the worker.
 		this._consumerSocket.on('data', (buffer: Buffer) =>
 		{
@@ -72,11 +75,13 @@ export class Channel extends EnhancedEventEmitter
 			}
 			else
 			{
+				// Append new buffer to recvBuffer
 				this._recvBuffer = Buffer.concat(
 					[ this._recvBuffer, buffer ],
 					this._recvBuffer.length + buffer.length);
 			}
 
+			// 接受数据超过缓存区最大值，则中止
 			if (this._recvBuffer!.length > NS_PAYLOAD_MAX_LEN)
 			{
 				logger.error('receiving buffer is full, discarding all data into it');
@@ -87,12 +92,14 @@ export class Channel extends EnhancedEventEmitter
 				return;
 			}
 
+			// 循环解析接收的数据
 			while (true) // eslint-disable-line no-constant-condition
 			{
 				let nsPayload;
 
 				try
 				{
+					// 智能解析接收到的数据
 					nsPayload = netstring.nsPayload(this._recvBuffer);
 				}
 				catch (error)
@@ -114,6 +121,7 @@ export class Channel extends EnhancedEventEmitter
 				try
 				{
 					// We can receive JSON messages (Channel messages) or log strings.
+					// 通过解析第一个字节来区分消息类别
 					switch (nsPayload[0])
 					{
 						// 123 = '{' (a Channel JSON messsage).
@@ -157,9 +165,11 @@ export class Channel extends EnhancedEventEmitter
 				}
 
 				// Remove the read payload from the buffer.
+				// 将以解析的数据从接收缓存中移除
 				this._recvBuffer =
 					this._recvBuffer!.slice(netstring.nsLength(this._recvBuffer));
 
+				// 接收缓存解析完成
 				if (!this._recvBuffer.length)
 				{
 					this._recvBuffer = undefined;
@@ -208,6 +218,7 @@ export class Channel extends EnhancedEventEmitter
 		// propagation.
 		this._consumerSocket.removeAllListeners('end');
 		this._consumerSocket.removeAllListeners('error');
+		// TODO: To avoid propagation? What the hell it means?
 		this._consumerSocket.on('error', () => {});
 
 		this._producerSocket.removeAllListeners('end');
@@ -227,6 +238,7 @@ export class Channel extends EnhancedEventEmitter
 	/**
 	 * @private
 	 */
+	// 向worker进程发送异步请求
 	async request(method: string, internal?: object, data?: any): Promise<any>
 	{
 		this._nextId < 4294967295 ? ++this._nextId : (this._nextId = 1);
@@ -247,9 +259,11 @@ export class Channel extends EnhancedEventEmitter
 		// This may throw if closed or remote side ended.
 		this._producerSocket.write(ns);
 
+		// 返回一个Promise等待请求结果
 		return new Promise((pResolve, pReject) =>
 		{
 			const timeout = 1000 * (15 + (0.1 * this._sents.size));
+			// 将Promise传入的pPesolve和pReject封装到Sent中，在稍后处理从woker接收的消息时调用
 			const sent: Sent =
 			{
 				id      : id,
@@ -289,6 +303,7 @@ export class Channel extends EnhancedEventEmitter
 		});
 	}
 
+	// 处理从woker进程接收的JSON消息
 	private _processMessage(msg: any): void
 	{
 		// If a response, retrieve its associated request.

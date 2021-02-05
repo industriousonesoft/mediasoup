@@ -222,46 +222,51 @@ export class Worker extends EnhancedEventEmitter
 		super();
 
 		logger.debug('constructor()');
-
+ 
+		// 在子进程运行的命令：debug 或 release版的mediasoup-worker
 		let spawnBin = workerBin;
+		// 创建子进程传入的参数
 		let spawnArgs: string[] = [];
 
+		// valgrind是一套用来分析程序性能和内存泄漏等问题的工具集
+		// https://www.valgrind.org/
 		if (process.env.MEDIASOUP_USE_VALGRIND === 'true')
 		{
+			// 见子程序命令改为valgrind
 			spawnBin = process.env.MEDIASOUP_VALGRIND_BIN || 'valgrind';
 
 			if (process.env.MEDIASOUP_VALGRIND_OPTIONS)
 			{
 				spawnArgs = spawnArgs.concat(process.env.MEDIASOUP_VALGRIND_OPTIONS.split(/\s+/));
 			}
-
+			// 原子进程命令workerBin作为第一个参数
 			spawnArgs.push(workerBin);
 		}
-
+		// 日志等级
 		if (typeof logLevel === 'string' && logLevel)
 			spawnArgs.push(`--logLevel=${logLevel}`);
-
+		// 日志标签
 		for (const logTag of (Array.isArray(logTags) ? logTags : []))
 		{
 			if (typeof logTag === 'string' && logTag)
 				spawnArgs.push(`--logTag=${logTag}`);
 		}
-
+		// 用于ICE, DTLS, RTP通信的RTC端口最小值，默认是10000.
 		if (typeof rtcMinPort === 'number' && !Number.isNaN(rtcMinPort))
 			spawnArgs.push(`--rtcMinPort=${rtcMinPort}`);
-
+		// RTP端口最大值59999
 		if (typeof rtcMaxPort === 'number' && !Number.isNaN(rtcMaxPort))
 			spawnArgs.push(`--rtcMaxPort=${rtcMaxPort}`);
-
+		// dtls证书
 		if (typeof dtlsCertificateFile === 'string' && dtlsCertificateFile)
 			spawnArgs.push(`--dtlsCertificateFile=${dtlsCertificateFile}`);
-
+		// dtls私钥
 		if (typeof dtlsPrivateKeyFile === 'string' && dtlsPrivateKeyFile)
 			spawnArgs.push(`--dtlsPrivateKeyFile=${dtlsPrivateKeyFile}`);
 
 		logger.debug(
 			'spawning worker process: %s %s', spawnBin, spawnArgs.join(' '));
-
+		// 异步创建子进程
 		this._child = spawn(
 			// command
 			spawnBin,
@@ -269,6 +274,7 @@ export class Worker extends EnhancedEventEmitter
 			spawnArgs,
 			// options
 			{
+				// 环境变量的键值对。 默认值: process.env
 				env :
 				{
 					MEDIASOUP_VERSION : '__MEDIASOUP_VERSION__',
@@ -277,9 +283,12 @@ export class Worker extends EnhancedEventEmitter
 					// LD_LIBRARY_PATH environment variable for runtime.
 					...process.env
 				},
-
+				// 是否让子进程独立于父进程之外运行
 				detached : false,
 
+				// options.stdio 选项用于配置在父进程和子进程之间建立的管道。 
+				// 默认情况下，子进程的stdin、stdout和stderr会被重定向到ChildProcess对象上相应的subprocess.stdin、subprocess.stdout和subprocess.stderr流。
+				// 这相当于将 options.stdio设置为['pipe', 'pipe', 'pipe']。
 				// fd 0 (stdin)   : Just ignore it.
 				// fd 1 (stdout)  : Pipe it for 3rd libraries that log their own stuff.
 				// fd 2 (stderr)  : Same as stdout.
@@ -288,6 +297,7 @@ export class Worker extends EnhancedEventEmitter
 				// fd 5 (channel) : Producer PayloadChannel fd.
 				// fd 6 (channel) : Consumer PayloadChannel fd.
 				stdio       : [ 'ignore', 'pipe', 'pipe', 'pipe', 'pipe', 'pipe', 'pipe' ],
+				// 隐藏子进程的控制台窗口，缺省值是false
 				windowsHide : true
 			});
 
