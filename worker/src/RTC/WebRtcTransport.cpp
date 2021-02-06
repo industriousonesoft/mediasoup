@@ -18,10 +18,11 @@ namespace RTC
 	// We do not support non rtcp-mux so component is always 1.
 	static constexpr uint16_t IceComponent{ 1 };
 
+	// Calculate the priority of a ICE candidate with it's local preferece
 	static inline uint32_t generateIceCandidatePriority(uint16_t localPreference)
 	{
 		MS_TRACE();
-
+		// IceTypePreference << 24 + localPreference << 8 + (256(0x100 = 0xFF + 0x01) - IceComponent)
 		return std::pow(2, 24) * IceTypePreference + std::pow(2, 8) * localPreference +
 		       std::pow(2, 0) * (256 - IceComponent);
 	}
@@ -33,17 +34,20 @@ namespace RTC
 	{
 		MS_TRACE();
 
+		// To check enable the UDP connection or not
 		bool enableUdp{ true };
 		auto jsonEnableUdpIt = data.find("enableUdp");
 
 		if (jsonEnableUdpIt != data.end())
 		{
+			// The value to 'enableUdp' key must a boolean
 			if (!jsonEnableUdpIt->is_boolean())
 				MS_THROW_TYPE_ERROR("wrong enableUdp (not a boolean)");
 
 			enableUdp = jsonEnableUdpIt->get<bool>();
 		}
 
+		// To check enable the TCP connection or not
 		bool enableTcp{ false };
 		auto jsonEnableTcpIt = data.find("enableTcp");
 
@@ -55,6 +59,7 @@ namespace RTC
 			enableTcp = jsonEnableTcpIt->get<bool>();
 		}
 
+		// To check if the user prefers UDP or not
 		bool preferUdp{ false };
 		auto jsonPreferUdpIt = data.find("preferUdp");
 
@@ -66,6 +71,7 @@ namespace RTC
 			preferUdp = jsonPreferUdpIt->get<bool>();
 		}
 
+		// To check if the user prefers TCP or not
 		bool preferTcp{ false };
 		auto jsonPreferTcpIt = data.find("preferTcp");
 
@@ -134,15 +140,19 @@ namespace RTC
 			{
 				if (enableUdp)
 				{
+					// Calculate the ICE local preference
 					uint16_t iceLocalPreference =
 					  IceCandidateDefaultLocalPriority - iceLocalPreferenceDecrement;
 
+					// Plus 1000 if prefering UDP
 					if (preferUdp)
 						iceLocalPreference += 1000;
 
+					// Calculate the ICE candidate priority
 					uint32_t icePriority = generateIceCandidatePriority(iceLocalPreference);
 
 					// This may throw.
+					// Create a new UDP socket connected with listener's IP
 					auto* udpSocket = new RTC::UdpSocket(this, listenIp.ip);
 
 					this->udpSockets[udpSocket] = listenIp.announcedIp;

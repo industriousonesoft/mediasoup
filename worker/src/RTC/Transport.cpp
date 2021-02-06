@@ -66,6 +66,7 @@ namespace RTC
 			this->maxMessageSize = jsonMaxMessageSizeIt->get<size_t>();
 		}
 
+		// The initial value of avaiable outgoing bitrate 
 		auto jsonInitialAvailableOutgoingBitrateIt = data.find("initialAvailableOutgoingBitrate");
 
 		if (jsonInitialAvailableOutgoingBitrateIt != data.end())
@@ -76,6 +77,7 @@ namespace RTC
 			this->initialAvailableOutgoingBitrate = jsonInitialAvailableOutgoingBitrateIt->get<uint32_t>();
 		}
 
+		// To check if enable SCTP or not
 		auto jsonEnableSctpIt = data.find("enableSctp");
 
 		// clang-format off
@@ -86,6 +88,7 @@ namespace RTC
 		)
 		// clang-format on
 		{
+			// STCP is not allowed in a direct transport
 			if (this->direct)
 			{
 				MS_THROW_TYPE_ERROR("cannot enable SCTP in a direct Transport");
@@ -168,6 +171,7 @@ namespace RTC
 				isDataChannel = jsonIsDataChannelIt->get<bool>();
 
 			// This may throw.
+			// Create a new SCTP association 
 			this->sctpAssociation = new RTC::SctpAssociation(
 			  this, os, mis, this->maxMessageSize, sctpSendBufferSize, isDataChannel);
 		}
@@ -725,7 +729,7 @@ namespace RTC
 						createTccServer = true;
 						bweType         = RTC::BweType::TRANSPORT_CC;
 					}
-					// Use REMB if:
+					// Use REMB (Receiver Estimated Maximum Bitrate) if:
 					// - there is abs-send-time RTP header extension, and
 					// - there is "remb" in codecs RTCP feedback.
 					//
@@ -750,6 +754,7 @@ namespace RTC
 						bweType         = RTC::BweType::REMB;
 					}
 
+					// Create a transport congestion controller in server side
 					if (createTccServer)
 					{
 						this->tccServer = new RTC::TransportCongestionControlServer(this, bweType, RTC::MtuSize);
