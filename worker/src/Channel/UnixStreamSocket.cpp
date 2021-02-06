@@ -22,6 +22,7 @@ namespace Channel
 	static uint8_t WriteBuffer[NsMessageMaxLen];
 
 	/* Instance methods. */
+	// 一个channel由两条pipe组成，分别是用于向主进程发送数据和接收主进程发来的数据
 	UnixStreamSocket::UnixStreamSocket(int consumerFd, int producerFd)
 	  : consumerSocket(consumerFd, NsMessageMaxLen, this), producerSocket(producerFd, NsMessageMaxLen)
 	{

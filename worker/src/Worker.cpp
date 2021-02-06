@@ -9,7 +9,7 @@
 #include "Channel/Notifier.hpp"
 
 /* Instance methods. */
-
+// 一个worker对应一条channel和一条payloadChannel, 每条channel(通道)都有两条与主进程通信的pipe(管道)，分别用读和写
 Worker::Worker(::Channel::UnixStreamSocket* channel, PayloadChannel::UnixStreamSocket* payloadChannel)
   : channel(channel), payloadChannel(payloadChannel)
 {
@@ -188,6 +188,7 @@ RTC::Router* Worker::GetRouterFromInternal(json& internal) const
 	return router;
 }
 
+// 捕获并处理channel从主进程接收的请求，在worker中只处理与worker相关的请求，其余的交给router处理，一个woker可以有多个router
 inline void Worker::OnChannelRequest(Channel::UnixStreamSocket* /*channel*/, Channel::Request* request)
 {
 	MS_TRACE();
@@ -197,17 +198,19 @@ inline void Worker::OnChannelRequest(Channel::UnixStreamSocket* /*channel*/, Cha
 
 	switch (request->methodId)
 	{
+		// worker数据备份请求
 		case Channel::Request::MethodId::WORKER_DUMP:
 		{
 			json data = json::object();
-
+			// 将worker的一些基本信息加入data中
 			FillJson(data);
-
+			// 返回请求结果
 			request->Accept(data);
 
 			break;
 		}
 
+		// worker的资源使用情况请求
 		case Channel::Request::MethodId::WORKER_GET_RESOURCE_USAGE:
 		{
 			json data = json::object();
@@ -219,6 +222,7 @@ inline void Worker::OnChannelRequest(Channel::UnixStreamSocket* /*channel*/, Cha
 			break;
 		}
 
+		// 更新worker设置的请求：日志level和tag
 		case Channel::Request::MethodId::WORKER_UPDATE_SETTINGS:
 		{
 			Settings::HandleRequest(request);
@@ -226,11 +230,13 @@ inline void Worker::OnChannelRequest(Channel::UnixStreamSocket* /*channel*/, Cha
 			break;
 		}
 
+		// 新建router的请求
 		case Channel::Request::MethodId::WORKER_CREATE_ROUTER:
 		{
 			std::string routerId;
 
 			// This may throw.
+			// 从internal中检测并获取routerId字段，并判断routerId是否已经创建
 			SetNewRouterIdFromInternal(request->internal, routerId);
 
 			auto* router = new RTC::Router(routerId);
@@ -244,6 +250,7 @@ inline void Worker::OnChannelRequest(Channel::UnixStreamSocket* /*channel*/, Cha
 			break;
 		}
 
+		// 关闭router的请求
 		case Channel::Request::MethodId::ROUTER_CLOSE:
 		{
 			// This may throw.
@@ -284,6 +291,7 @@ inline void Worker::OnChannelClosed(Channel::UnixStreamSocket* /*socket*/)
 	Close();
 }
 
+// 捕获并处理PayloadChannel从主进程接收的通知
 inline void Worker::OnPayloadChannelNotification(
   PayloadChannel::UnixStreamSocket* /*payloadChannel*/, PayloadChannel::Notification* notification)
 {
@@ -297,6 +305,7 @@ inline void Worker::OnPayloadChannelNotification(
 	router->HandleNotification(notification);
 }
 
+// 捕获并处理payloadChannel从主进程接收的请求
 inline void Worker::OnPayloadChannelRequest(
   PayloadChannel::UnixStreamSocket* /*payloadChannel*/, PayloadChannel::Request* request)
 {

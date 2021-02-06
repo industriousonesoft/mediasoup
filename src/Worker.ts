@@ -284,6 +284,7 @@ export class Worker extends EnhancedEventEmitter
 					...process.env
 				},
 				// 是否让子进程独立于父进程之外运行
+				// detached=false，意味着是主进程会等待子进程退出后才会退出
 				detached : false,
 
 				// options.stdio 选项用于配置在父进程和子进程之间建立的管道。 

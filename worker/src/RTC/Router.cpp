@@ -160,12 +160,14 @@ namespace RTC
 		}
 	}
 
+    // 处理Channle接收的请求
 	void Router::HandleRequest(Channel::Request* request)
 	{
 		MS_TRACE();
 
 		switch (request->methodId)
 		{
+			// router备份请求
 			case Channel::Request::MethodId::ROUTER_DUMP:
 			{
 				json data = json::object();
@@ -177,14 +179,17 @@ namespace RTC
 				break;
 			}
 
+			// 创建webrtc transport请求
 			case Channel::Request::MethodId::ROUTER_CREATE_WEBRTC_TRANSPORT:
 			{
 				std::string transportId;
 
 				// This may throw.
+				// 检测并获取internal字典中的transportId，并判断transportId是否已经存在
 				SetNewTransportIdFromInternal(request->internal, transportId);
 
 				// This may throw.
+				// 创建webrtc类型的传输层
 				auto* webRtcTransport = new RTC::WebRtcTransport(transportId, this, request->data);
 
 				// Insert into the map.
@@ -201,6 +206,7 @@ namespace RTC
 				break;
 			}
 
+            // 创建plain transport
 			case Channel::Request::MethodId::ROUTER_CREATE_PLAIN_TRANSPORT:
 			{
 				std::string transportId;
@@ -224,6 +230,7 @@ namespace RTC
 				break;
 			}
 
+			// 创建pipe transport
 			case Channel::Request::MethodId::ROUTER_CREATE_PIPE_TRANSPORT:
 			{
 				std::string transportId;
@@ -247,6 +254,7 @@ namespace RTC
 				break;
 			}
 
+			// 创建direct transport
 			case Channel::Request::MethodId::ROUTER_CREATE_DIRECT_TRANSPORT:
 			{
 				std::string transportId;
@@ -270,6 +278,7 @@ namespace RTC
 				break;
 			}
 
+			// 创建音频等级监听器
 			case Channel::Request::MethodId::ROUTER_CREATE_AUDIO_LEVEL_OBSERVER:
 			{
 				std::string rtpObserverId;
@@ -289,6 +298,7 @@ namespace RTC
 				break;
 			}
 
+			// 关闭transport的请求：包括webrtc、plain、pipe、direct
 			case Channel::Request::MethodId::TRANSPORT_CLOSE:
 			{
 				// This may throw.
@@ -758,6 +768,7 @@ namespace RTC
 		consumer->ProducerRtpStreamScores(producer->GetRtpStreamScores());
 	}
 
+	// Consumer主动关闭的代理函数
 	inline void Router::OnTransportConsumerClosed(RTC::Transport* /*transport*/, RTC::Consumer* consumer)
 	{
 		MS_TRACE();
@@ -789,6 +800,7 @@ namespace RTC
 		this->mapConsumerProducer.erase(mapConsumerProducerIt);
 	}
 
+	// Consumer因producer关闭而被动关闭的代理函数
 	inline void Router::OnTransportConsumerProducerClosed(
 	  RTC::Transport* /*transport*/, RTC::Consumer* consumer)
 	{

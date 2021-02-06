@@ -68,10 +68,13 @@ UnixStreamSocket::UnixStreamSocket(int fd, size_t bufferSize, UnixStreamSocket::
 
 	int err;
 
+	// 新建一个pip句柄
 	this->uvHandle       = new uv_pipe_t;
+	// pip句柄上下文
 	this->uvHandle->data = static_cast<void*>(this);
 
-	err = uv_pipe_init(DepLibUV::GetLoop(), this->uvHandle, 0);
+    // 将pip句柄加入loop
+	err = uv_pipe_init(DepLibUV::GetLoop(), this->uvHandle, 0 /* 1 indicates used in ipc */);
 
 	if (err != 0)
 	{
@@ -81,6 +84,10 @@ UnixStreamSocket::UnixStreamSocket(int fd, size_t bufferSize, UnixStreamSocket::
 		MS_THROW_ERROR_STD("uv_pipe_init() failed: %s", uv_strerror(err));
 	}
 
+	// 将当前pipe端对接远端的pipe句柄
+	// fd是从主进程传入的管道句柄
+	// 如果role=producer，说明当前是发送端，fd是接收端
+	// 如果role=consumer，说明当前是接收端，fd是发送端
 	err = uv_pipe_open(this->uvHandle, fd);
 
 	if (err != 0)
@@ -90,6 +97,7 @@ UnixStreamSocket::UnixStreamSocket(int fd, size_t bufferSize, UnixStreamSocket::
 		MS_THROW_ERROR_STD("uv_pipe_open() failed: %s", uv_strerror(err));
 	}
 
+	// 如果当前端是comsumer，则设置“读”监听，监听接受的数据
 	if (this->role == UnixStreamSocket::Role::CONSUMER)
 	{
 		// Start reading.
